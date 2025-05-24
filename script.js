@@ -11,30 +11,57 @@ document.addEventListener("DOMContentLoaded", () => {
     if (taskText === '') return;
   
     const tasks = getTasksFromStorage();
-    tasks.push({ text: taskText, completed: false });
+    tasks.active.push({ text: taskText, completed: false });
     saveTasksToStorage(tasks);
   
     renderTasks();
     input.value = '';
   }
   
-  function deleteTask(index) {
+  function deleteTask(index, isCompleted = false) {
     const tasks = getTasksFromStorage();
-    tasks.splice(index, 1);
+    const taskList = isCompleted ? tasks.completed : tasks.active;
+    taskList.splice(index, 1);
     saveTasksToStorage(tasks);
     renderTasks();
   }
   
-  function toggleTask(index) {
+  function toggleTask(index, isCompleted = false) {
     const tasks = getTasksFromStorage();
-    tasks[index].completed = !tasks[index].completed;
-    saveTasksToStorage(tasks);
-    renderTasks();
+    const sourceList = isCompleted ? tasks.completed : tasks.active;
+    const targetList = isCompleted ? tasks.active : tasks.completed;
+    const task = sourceList[index];
+    
+    const taskElement = document.querySelector(
+      `${isCompleted ? '#completedTaskList' : '#taskList'} li[data-index="${index}"]`
+    );
+  
+    taskElement.classList.add('completing');
+  
+    setTimeout(() => {
+      sourceList.splice(index, 1);
+      targetList.push({ ...task, completed: !isCompleted });
+      saveTasksToStorage(tasks);
+      renderTasks();
+    }, 300);
   }
   
   function getTasksFromStorage() {
     const tasksJSON = localStorage.getItem('tasks');
-    return tasksJSON ? JSON.parse(tasksJSON) : [];
+    if (!tasksJSON) return { active: [], completed: [] };
+    
+    const parsedTasks = JSON.parse(tasksJSON);
+    
+    if (Array.isArray(parsedTasks)) {
+        const migratedTasks = {
+            active: parsedTasks.filter(task => !task.completed),
+            completed: parsedTasks.filter(task => task.completed)
+        };
+        saveTasksToStorage(migratedTasks);
+        return migratedTasks;
+    }
+    
+    return parsedTasks;
   }
   
   function saveTasksToStorage(tasks) {
@@ -42,55 +69,74 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   
   function renderTasks() {
-    const taskList = document.getElementById('taskList');
-    taskList.innerHTML = '';
+    const activeTaskList = document.getElementById('taskList');
+    const completedTaskList = document.getElementById('completedTaskList');
+    activeTaskList.innerHTML = '';
+    completedTaskList.innerHTML = '';
   
     const tasks = getTasksFromStorage();
   
-    tasks.forEach((task, index) => {
-      const listItem = document.createElement('li');
-      listItem.className = 'task-item';
-      listItem.setAttribute('draggable', 'true');
-      listItem.dataset.index = index;
+    tasks.active.forEach((task, index) => {
+      const listItem = createTaskElement(task, index, false);
+      activeTaskList.appendChild(listItem);
+    });
+
+    tasks.completed.forEach((task, index) => {
+      const listItem = createTaskElement(task, index, true);
+      listItem.classList.add('appearing');
+      completedTaskList.appendChild(listItem);
+    });
+  }
+
+  function createTaskElement(task, index, isCompleted) {
+    const listItem = document.createElement('li');
+    listItem.className = 'task-item';
+    listItem.setAttribute('draggable', !isCompleted);
+    listItem.dataset.index = index;
   
+    if (!isCompleted) {
       listItem.addEventListener('dragstart', handleDragStart);
       listItem.addEventListener('dragover', handleDragOver);
       listItem.addEventListener('drop', handleDrop);
       listItem.addEventListener('dragend', handleDragEnd);
+    }
   
-      const taskLeft = document.createElement('div');
-      taskLeft.className = 'task-left';
+    const taskLeft = document.createElement('div');
+    taskLeft.className = 'task-left';
   
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = task.completed;
-      checkbox.addEventListener('change', () => toggleTask(index));
-  
-      const taskTextDiv = document.createElement('div');
-      taskTextDiv.className = 'task-text';
-      taskTextDiv.textContent = task.text;
-  
-      if (task.completed) {
-        taskTextDiv.style.textDecoration = 'line-through';
-        taskTextDiv.style.opacity = '0.6';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = isCompleted;
+    
+    checkbox.addEventListener('change', (e) => {
+      const taskTextDiv = e.target.parentElement.querySelector('.task-text');
+      if (!isCompleted) {
+        taskTextDiv.classList.add('completed');
       } else {
-        taskTextDiv.style.textDecoration = 'none';
-        taskTextDiv.style.opacity = '1';
+        taskTextDiv.classList.remove('completed');
       }
-  
-      taskLeft.appendChild(checkbox);
-      taskLeft.appendChild(taskTextDiv);
-  
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'task-delete';
-      deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-      deleteBtn.onclick = () => deleteTask(index);
-  
-      listItem.appendChild(taskLeft);
-      listItem.appendChild(deleteBtn);
-  
-      taskList.appendChild(listItem);
+      setTimeout(() => toggleTask(index, isCompleted), 150);
     });
+  
+    const taskTextDiv = document.createElement('div');
+    taskTextDiv.className = 'task-text';
+    if (isCompleted) {
+      taskTextDiv.classList.add('completed');
+    }
+    taskTextDiv.textContent = task.text;
+  
+    taskLeft.appendChild(checkbox);
+    taskLeft.appendChild(taskTextDiv);
+  
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'task-delete';
+    deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+    deleteBtn.onclick = () => deleteTask(index, isCompleted);
+  
+    listItem.appendChild(taskLeft);
+    listItem.appendChild(deleteBtn);
+  
+    return listItem;
   }
   
   function loadTasks() {
@@ -99,31 +145,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let draggedIndex = null;
 
-function handleDragStart(e) {
-  draggedIndex = +this.dataset.index;
-  this.classList.add('dragging');
-}
+  function handleDragStart(e) {
+    draggedIndex = +this.dataset.index;
+    this.classList.add('dragging');
+  }
 
-function handleDragOver(e) {
-  e.preventDefault(); 
-}
+  function handleDragOver(e) {
+    e.preventDefault(); 
+  }
 
-function handleDrop(e) {
-  const targetIndex = +this.dataset.index;
-  if (draggedIndex === null || draggedIndex === targetIndex) return;
+  function handleDrop(e) {
+    const targetIndex = +this.dataset.index;
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
 
-  const tasks = getTasksFromStorage();
-  const draggedItem = tasks[draggedIndex];
-  tasks.splice(draggedIndex, 1);         
-  tasks.splice(targetIndex, 0, draggedItem);
+    const tasks = getTasksFromStorage();
+    const draggedItem = tasks.active[draggedIndex];
+    tasks.active.splice(draggedIndex, 1);         
+    tasks.active.splice(targetIndex, 0, draggedItem);
 
-  saveTasksToStorage(tasks);
-  renderTasks();
-}
+    saveTasksToStorage(tasks);
+    renderTasks();
+  }
 
-function handleDragEnd() {
-  draggedIndex = null;
-  document.querySelectorAll('.task-item').forEach(item => item.classList.remove('dragging'));
-}
-
+  function handleDragEnd() {
+    draggedIndex = null;
+    document.querySelectorAll('.task-item').forEach(item => item.classList.remove('dragging'));
+  }
   
