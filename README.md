@@ -25,25 +25,25 @@ This app helps you manage your tasks with a clean, modern interface and smooth a
 
 ## Installation
 
-- **Clone the repository**
+**Clone the repository**
 
-git clone https://github.com/arvinwira/todo-app.git
+- git clone https://github.com/arvinwira/todo-app.git
 
-- **Navigate to the project directory**
+**Navigate to the project directory**
 
-cd todo-app
+- cd todo-app
 
-- **Install dependencies**
+**Install dependencies**
 
-npm install
+- npm install
 
-- **Start the app**
+**Start the app**
 
-npm start
+- npm start
 
-- **Build the app**
+**Build the app**
 
-npm run build
+- npm run build
 
 ## How to Use
 
