@@ -1,4 +1,4 @@
-# Modern Todo App
+# Todo Application
 
 A simple desktop Todo application built with Electron.js. 
 This app helps you manage your tasks with a clean, modern interface and smooth animations.
